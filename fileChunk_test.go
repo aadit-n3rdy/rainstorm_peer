@@ -8,8 +8,8 @@ import (
 func TestFileChunk(t *testing.T) {
 	var ck Chunker
 	ck.init("chunkpath/")
-	cf, err := ck.chunkFile("testfiles/file_100K.jpg")
+	cf, err := ck.addChunkedFile("testfiles/file_100K.jpg")
 	fmt.Println(cf, err)
-	cf, err = ck.chunkFile("testfiles/file_100K.jpg")
-	fmt.Println(cf, err)
+	uu, err := ck.getChunks(cf)
+	fmt.Println(uu, err)
 }
