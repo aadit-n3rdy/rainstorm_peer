@@ -1,12 +1,42 @@
 package main
 
 import (
-	"fmt"
-	"strings"
-	"rainstorm/common"
-	"github.com/quic-go/quic-go"
 	"crypto/tls"
+	"encoding/json"
+	"fmt"
+	"rainstorm/common"
+	"strings"
+	"net"
+
+	"github.com/quic-go/quic-go"
 )
+
+func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) {
+	dict := map[string]interface{} {
+		"class": "init",
+		"type": "download_start",
+		"file_id": fileID,
+	}
+	dictMsg, err := json.Marshal(dict)
+
+	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
+	defer conn.Close()
+
+	if err != nil {
+		return common.FileDownloadData{}, err
+	}
+
+	conn.Write(dictMsg)
+
+	buf := make([]byte, 1024)
+	fdd := common.FileDownloadData{}
+	n, err := conn.Read(buf)
+	err = json.Unmarshal(buf[:n], &fdd)
+	if err != nil {
+		return common.FileDownloadData{}, err
+	}
+	return fdd, nil
+}
 
 func main() {
 	done := false

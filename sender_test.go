@@ -8,15 +8,24 @@ import (
 )
 
 func TestSender(t *testing.T) {
-
 	chunker := &Chunker{}
 	chunker.init("./sender_chunk_path")
 	var err error
-	testFileID, err = chunker.addChunkedFile("./testfiles/file_100K.jpg")
+	chunkerID, err := chunker.addChunkedFile("./testfiles/file_100K.jpg")
+	fmt.Printf("Chunked to: %v\n", chunkerID)
 	if err != nil {
 		fmt.Println("Err: ", err)
 		return
 	}
+
+	FileManager.Store(
+		"somefileid", 
+		StoredFile{
+			FileID: "somefileid", 
+			FileName: "somefilename", 
+			ChunkerID: chunkerID,
+		},
+	)
 
 	listener, err := quic.ListenAddr(fmt.Sprintf(
 		":%v", common.PEER_QUIC_PORT),

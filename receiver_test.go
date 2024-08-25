@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 	//"fmt"
-	"rainstorm/common"
+	//"rainstorm/common"
 )
 
 func TestReceiver(t *testing.T) {
@@ -12,14 +12,17 @@ func TestReceiver(t *testing.T) {
 	chunker := &Chunker{}
 	chunker.init("./receiver_chunk_path")
 
-	fmt.Println("Chunker ready")
+	fmt.Println("Chunker ready");
 
-	err := fileReceiver(
-		common.FileDownloadData{
-			FileID: "somefileid", 
-			FileName: "somefilename", 
-			Peers: []common.Peer{{IP: "127.0.0.1", Port: common.PEER_QUIC_PORT}},
-		},
+	trackerIP := "127.0.0.1"
+	fdd, err := fetchFDD("somefileid", trackerIP)
+	if err != nil {
+		fmt.Printf("Error fetching FDD: %v\n", err)
+		return
+	}
+
+	err = fileReceiver(
+		fdd,
 		"testfile.jpeg",
 		chunker,
 	)

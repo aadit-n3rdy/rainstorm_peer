@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 //	"rainstorm/common"
-
 	"github.com/google/uuid"
 
 	"github.com/quic-go/quic-go"
@@ -55,17 +54,30 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			fmt.Printf("Could not read frm from %v\nError: %v\n", conn.RemoteAddr().String(), err);
 			return
 		}
-		fmt.Println("File request msg: ", string(recvBuf[:n]))
-		//ackDict := map[string]interface{}{
-		//	"status": STATUS_OK,
-		//};
+		//fmt.Println("File request msg: ", string(recvBuf[:n]))
+		frm := FileReqMsg{}
+		err = json.Unmarshal(recvBuf[:n], &frm)
+		if err != nil {
+			fmt.Printf("Couldn't unmarshall frm, %v\n", err)
+			return
+		}
 
+		fmt.Println(frm)
+		
 		// 2. check file cache
 		// NEED A MAPPING FROM FILEID to CHUNKFILEID
-		// TODO: FN JUST SENDING THE SAME FILE
-		cd, err := chunker.getChunks(testFileID)
+		// FN JUST SENDING THE SAME FILE
+		rawsf, ok := FileManager.Load(frm.FileID)
+		if !ok {
+			stream.Write([]byte(fmt.Sprintf("{\"status\": %v}", STATUS_MISSING)))
+			fmt.Printf("Unkown file ID %v\n", frm.FileID)
+			return
+		}
+		sf := rawsf.(StoredFile)
+		cd, err := chunker.getChunks(sf.ChunkerID)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Unknown chunker id %v %v\n", sf.ChunkerID.String(), err)
+			return
 		}
 
 		cam := ChunkAvailMsg{}
@@ -91,7 +103,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 				break
 			}
 
-			fname, err := chunker.getChunkFname(testFileID, crm.Chunk)
+			fname, err := chunker.getChunkFname(sf.ChunkerID, crm.Chunk)
 			if err != nil {
 				fmt.Println(err)
 				break
@@ -101,24 +113,6 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			f, err := os.Open(fname)
 			n, err = f.Read(writeBuf)
 			stream.Write(writeBuf[:n])
-
-			//writeBuf := make([]byte, SUBCHUNK_SIZE)
-			//f, err := os.Open(fname)
-			//base64buf := make([]byte, (SUBCHUNK_SIZE+1)*4)
-			//for true {
-			//	n, err := f.Read(writeBuf)
-			//	if err != nil {
-			//		fmt.Println(err)
-			//	}
-			//	if n == 0 {
-			//		break
-			//	}
-			//	base64.RawStdEncoding.Encode(base64buf, writeBuf)
-
-			//	ftm := FileTransferMsg{Status: STATUS_OK, Data: string(base64buf)}
-			//	ftmBuf, _ := json.Marshal(ftm)
-			//	stream.Write(ftmBuf)
-			//}
 		}
 		conn.CloseWithError(quic.ApplicationErrorCode(0), "bye!")
 		fmt.Println("DONE")
