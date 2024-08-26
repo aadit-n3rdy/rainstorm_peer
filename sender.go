@@ -67,13 +67,12 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 		// 2. check file cache
 		// NEED A MAPPING FROM FILEID to CHUNKFILEID
 		// FN JUST SENDING THE SAME FILE
-		rawsf, ok := FileManager.Load(frm.FileID)
+		sf, ok := FileManagerGetFile(frm.FileID)
 		if !ok {
 			stream.Write([]byte(fmt.Sprintf("{\"status\": %v}", STATUS_MISSING)))
 			fmt.Printf("Unkown file ID %v\n", frm.FileID)
 			return
 		}
-		sf := rawsf.(StoredFile)
 		cd, err := chunker.getChunks(sf.ChunkerID)
 		if err != nil {
 			fmt.Printf("Unknown chunker id %v %v\n", sf.ChunkerID.String(), err)

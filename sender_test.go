@@ -1,9 +1,10 @@
 package main
 
 import (
-	"testing"
 	"fmt"
 	"rainstorm/common"
+	"testing"
+
 	"github.com/quic-go/quic-go"
 )
 
@@ -18,14 +19,24 @@ func TestSender(t *testing.T) {
 		return
 	}
 
-	FileManager.Store(
-		"somefileid", 
+	TrackerManagerInit()
+
+	//fmt.Print("Enter tracker IP: ")
+	//var trackerIP string 
+	//fmt.Scanf("%s", &trackerIP)
+	//fmt.Printf("Tracker is at: %v\n", trackerIP)
+	trackerIP := "127.0.0.1"
+
+	FileManagerAddFile(
 		StoredFile{
 			FileID: "somefileid", 
 			FileName: "somefilename", 
 			ChunkerID: chunkerID,
+			TrackerIP: trackerIP,
 		},
 	)
+
+	go aliveHandler()
 
 	listener, err := quic.ListenAddr(fmt.Sprintf(
 		":%v", common.PEER_QUIC_PORT),

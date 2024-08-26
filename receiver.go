@@ -16,6 +16,9 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 	quicConf := quic.Config{
 	MaxIdleTimeout: 60 * time.Second,
 	}
+	if len(fdd.Peers) == 0 {
+		return errors.New("No peers for given file")
+	}
 	destStr := fmt.Sprintf("%v:%v", fdd.Peers[0].IP, fdd.Peers[0].Port)
 	conn, err := quic.DialAddr(context.Background(), destStr, generateTLSConfig(), &quicConf)
 	if err != nil {
