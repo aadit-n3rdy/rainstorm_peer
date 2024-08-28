@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"rainstorm/common"
+	"github.com/aadit-n3rdy/rainstorm/common"
 	"testing"
 
 	"github.com/quic-go/quic-go"

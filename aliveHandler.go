@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net"
 	"fmt"
-	"rainstorm/common"
+	"github.com/aadit-n3rdy/rainstorm/common"
 )
 
 func aliveHandler() {

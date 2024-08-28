@@ -3,10 +3,8 @@ package main
 import (
 	"context"
 	"encoding/json"
-//	"encoding/base64"
 	"fmt"
 	"os"
-//	"rainstorm/common"
 	"github.com/google/uuid"
 
 	"github.com/quic-go/quic-go"

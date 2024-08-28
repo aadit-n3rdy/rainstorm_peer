@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"testing"
-	//"fmt"
-	//"rainstorm/common"
 )
 
 func TestReceiver(t *testing.T) {

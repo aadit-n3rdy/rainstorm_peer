@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"rainstorm/common"
+	"github.com/aadit-n3rdy/rainstorm/common"
 	"strings"
 	"net"
 

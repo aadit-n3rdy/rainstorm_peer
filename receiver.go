@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"rainstorm/common"
+	"github.com/aadit-n3rdy/rainstorm/common"
 	"time"
 
 	"github.com/quic-go/quic-go"
