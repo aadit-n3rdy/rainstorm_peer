@@ -27,7 +27,7 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 
 	fmt.Println("Dialed addr")
 
-	chunkerID := chunker.addEmptyFile()
+	chunkerID := chunker.addEmptyFile(fdd.ChunkCount)
 
 	stream, err := conn.AcceptStream(conn.Context())
 	if err != nil {
@@ -87,6 +87,7 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 		if err != nil {
 			return errors.New(fmt.Sprintf("Error getting chunk %v fname, %v", cam.Chunks[i], err))
 		}
+		chunker.setChunkDone(chunkerID, cam.Chunks[i])
 		f, err := os.Create(fname)
 		if err != nil {
 			return errors.New("Could not open file: " + fname + " " + err.Error())
@@ -101,7 +102,13 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 	crmBuf, err := json.Marshal(crm)
 	stream.Write(crmBuf)
 
-	chunker.unchunk(chunkerID, dest)
+	fmt.Println("Unchunking")
+
+	err = chunker.unchunk(chunkerID, dest)
+	if  err != nil {
+		fmt.Println("Failed while unchunking:", err)
+		return err
+	}
 
 	fmt.Println("DONE!")
 	stream.Close()

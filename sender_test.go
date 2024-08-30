@@ -9,10 +9,12 @@ import (
 )
 
 func TestSender(t *testing.T) {
+	fmt.Println("Sender test")
 	chunker := &Chunker{}
 	chunker.init("./sender_chunk_path")
+	fmt.Println("Chunker inited")
 	var err error
-	chunkerID, err := chunker.addChunkedFile("./testfiles/file_100K.jpg")
+	chunkerID, err := chunker.addDiskFile("./testfiles/file_100K.jpg")
 	fmt.Printf("Chunked to: %v\n", chunkerID)
 	if err != nil {
 		fmt.Println("Err: ", err)
@@ -21,10 +23,6 @@ func TestSender(t *testing.T) {
 
 	TrackerManagerInit()
 
-	//fmt.Print("Enter tracker IP: ")
-	//var trackerIP string 
-	//fmt.Scanf("%s", &trackerIP)
-	//fmt.Printf("Tracker is at: %v\n", trackerIP)
 	trackerIP := "127.0.0.1"
 
 	FileManagerAddFile(
