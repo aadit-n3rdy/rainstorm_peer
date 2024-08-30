@@ -1,5 +1,5 @@
-github.com/aadit-n3rdy/rainstorm/common v0.0.0-20240828142453-96b632a83f5e h1:b7aKk1c5GiseMDhS4hBFhUCba8a1DCVIdM5eA/Sg0QU=
-github.com/aadit-n3rdy/rainstorm/common v0.0.0-20240828142453-96b632a83f5e/go.mod h1:Y2JlUwRDYG3RYKRjWPX+4QXAQxyb28edwcyBQ9ISjrY=
+github.com/aadit-n3rdy/rainstorm_common v0.0.0-20240830205102-f3a4e0602d55 h1:Vtj0KfMEzRYoA3kfcUF345Dl73Kg2WtNXv7wGp/k9og=
+github.com/aadit-n3rdy/rainstorm_common v0.0.0-20240830205102-f3a4e0602d55/go.mod h1:ABf5nU+9/J+1lzw/VJE9EElUbugHspgLVu5G1npvRS4=
 github.com/chzyer/logex v1.1.10/go.mod h1:+Ywpsq7O8HXn0nuIou7OrIPyXbp3wmkHB+jjWRnGsAI=
 github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e/go.mod h1:nSuG5e5PlCu98SY8svDHJxuZscDgtXS6KTTbou5AhLI=
 github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1/go.mod h1:Q3SI9o4m/ZMnBNeIyt5eFwwo7qiLfzFZmjNmxjkiQlU=

@@ -3,7 +3,7 @@ module github.com/aadit-n3rdy/rainstorm/peer
 go 1.22.5
 
 require (
-	github.com/aadit-n3rdy/rainstorm/common v0.0.0-20240828142453-96b632a83f5e
+	github.com/aadit-n3rdy/rainstorm_common v0.0.0-20240830205102-f3a4e0602d55
 	github.com/google/uuid v1.6.0
 	github.com/quic-go/quic-go v0.46.0
 )
