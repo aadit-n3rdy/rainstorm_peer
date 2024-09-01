@@ -38,6 +38,29 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 	return fdd, nil
 }
 
+func pushFDD(fdd *common.FileDownloadData, trackerIP string) error {
+
+	dict := map[string]interface{} {
+		"class": "init",
+		"type": "file_register",
+		"file_download_data": 	fdd,
+	}
+
+	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
+	defer conn.Close()
+
+	if err != nil {
+		return err
+	}
+
+	fdd_msg, err := json.Marshal(dict)
+	_, err = conn.Write(fdd_msg)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func main() {
 	done := false
 	var s string;

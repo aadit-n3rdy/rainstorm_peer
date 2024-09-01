@@ -34,6 +34,11 @@ func TestSender(t *testing.T) {
 		},
 	)
 
+	var fdd common.FileDownloadData
+
+	FileManagerFillFDD("somefileid", chunker, &fdd)
+	pushFDD(&fdd, "127.0.0.1")
+
 	go aliveHandler()
 
 	listener, err := quic.ListenAddr(fmt.Sprintf(

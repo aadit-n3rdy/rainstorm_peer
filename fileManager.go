@@ -2,6 +2,8 @@ package main
 
 import (
 	"sync"
+
+	common "github.com/aadit-n3rdy/rainstorm_common"
 	"github.com/google/uuid"
 )
 
@@ -34,4 +36,17 @@ func FileManagerGetFile(fileID string) (StoredFile, bool) {
 		return StoredFile{}, ok
 	}
 	return raw.(StoredFile), ok
+}
+
+func FileManagerFillFDD(fileID string, chunker *Chunker, fdd *common.FileDownloadData) {
+	raw, ok := FileManager.Load(fileID)
+	if !ok {
+		return
+	}
+	sf := raw.(StoredFile)
+	fdd.FileID = fileID
+	fdd.FileName = sf.FileName
+	cl, _ := chunker.getChunks(sf.ChunkerID)
+	fdd.ChunkCount = len(cl)
+	fdd.Peers = make([]common.Peer, 0)
 }
