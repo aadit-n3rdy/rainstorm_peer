@@ -10,13 +10,31 @@ import (
 
 const CHUNK_SIZE int64 = 1024;
 
+const (
+	CHUNK_EMPTY = iota
+	CHUNK_BUSY
+	CHUNK_DONE
+)
+
+const (
+	CHUNKEDFILE_EMPTY = iota
+	CHUNKEDFILE_BUSY
+	CHUNKEDFILE_DONE
+)
+
+type ChunkedFile struct {
+	Chunks []Chunk;
+	ChunksDone int;
+	//Status int;
+};
+
 type Chunk struct {
 	FileName string;
-	Done bool;
+	Status int;
 };
 
 type Chunker struct {
-	chunkCache map[uuid.UUID][]Chunk; // Map File ID to []Chunk
+	chunkCache map[uuid.UUID]ChunkedFile; // Map File ID to []Chunk
 	chunkMutex sync.Mutex;
 	chunkPath string;
 };
@@ -29,7 +47,7 @@ func (self *Chunker) init(chunkPath string) error {
 	} else if err != nil {
 		return err
 	}
-	self.chunkCache = make(map[uuid.UUID][]Chunk)
+	self.chunkCache = make(map[uuid.UUID]ChunkedFile)
 	return err
 }
 
@@ -40,11 +58,11 @@ func (self *Chunker) getChunks(fileID uuid.UUID) ([]Chunk, error) {
 }
 
 func (self *Chunker) getChunksUnsafe(fileID uuid.UUID) ([]Chunk, error) {
-	dict, ok := self.chunkCache[fileID]
+	cf, ok := self.chunkCache[fileID]
 	if !ok {
 		return []Chunk{}, errors.New(fmt.Sprintf("Unknown file ID %v", fileID))
 	} 
-	return dict, nil
+	return cf.Chunks, nil
 }
 
 
@@ -98,9 +116,9 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		if err != nil {
 			return fileID, err
 		}
-		cf[chunk] = Chunk{FileName: cfname, Done: true};
+		cf[chunk] = Chunk{FileName: cfname, };
 	}
-	self.chunkCache[fileID] = cf
+	self.chunkCache[fileID] = ChunkedFile{Chunks: cf, ChunksDone: len(cf)}
 	return fileID, nil
 }
 
@@ -111,12 +129,12 @@ func (self *Chunker) addEmptyFile(n_chunks int) uuid.UUID {
 	fileID := uuid.New()
 
 	arr := make([]Chunk, n_chunks)
-	self.chunkCache[fileID] = arr
+	self.chunkCache[fileID] = ChunkedFile{Chunks: arr, ChunksDone: 0}
 
 	hash := fileID.String()
 	for i:= 0; i < n_chunks; i+=1 {
 		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, i)
-		arr[i] = Chunk{FileName: cfname, Done: false};
+		arr[i] = Chunk{FileName: cfname, Status: CHUNK_EMPTY};
 	}
 
 	return fileID
@@ -126,11 +144,11 @@ func (self *Chunker) getChunkFname(fileID uuid.UUID, chunk int) (string, error) 
 	self.chunkMutex.Lock()
 	defer self.chunkMutex.Unlock()
 
-	dict, ok := self.chunkCache[fileID]
+	cf, ok := self.chunkCache[fileID]
 	if !ok {
 		return "", errors.New(fmt.Sprintf("Unkown fileID %v", fileID.String()))
 	}
-	res := dict[chunk]
+	res := cf.Chunks[chunk]
 	return res.FileName, nil
 }
 
@@ -138,30 +156,16 @@ func (self *Chunker) isChunkDone(fileID uuid.UUID, chunk int) bool {
 	self.chunkMutex.Lock()
 	defer self.chunkMutex.Unlock()
 
-	dict, ok := self.chunkCache[fileID]
+	cf, ok := self.chunkCache[fileID]
 	if !ok {
 		return false
 	}
-	res := dict[chunk]
-	if !res.Done {
+	res := cf.Chunks[chunk]
+	if res.Status != CHUNK_DONE {
 		return false
 	} else {
 		return true
 	}
-}
-
-func (self *Chunker) setChunkDone(fileID uuid.UUID, chunk int) error {
-	self.chunkMutex.Lock()
-	defer self.chunkMutex.Unlock()
-
-	dict, ok := self.chunkCache[fileID]
-	if !ok {
-		return errors.New(fmt.Sprintf("Unknown fileID %v", fileID.String()))
-	}
-	cur := dict[chunk]
-	cur.Done = true
-	dict[chunk] = cur
-	return nil
 }
 
 func (self *Chunker) deleteFile(fileID uuid.UUID) {
@@ -169,6 +173,40 @@ func (self *Chunker) deleteFile(fileID uuid.UUID) {
 	defer self.chunkMutex.Unlock()
 
 	delete(self.chunkCache, fileID)
+}
+
+func (self *Chunker) markChunkBusyIfFree(fileID uuid.UUID, chunk int) bool {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	ch :=  &(self.chunkCache[fileID].Chunks[chunk])
+	if ch.Status == CHUNK_EMPTY {
+		ch.Status = CHUNK_BUSY
+		return true
+	} else {
+		return false
+	}
+}
+
+func (self *Chunker) markChunkDone(fileID uuid.UUID, chunk int) {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	cf := self.chunkCache[fileID]
+	if (cf.Chunks[chunk].Status != CHUNK_DONE) {
+		cf.Chunks[chunk].Status = CHUNK_DONE
+		cf.ChunksDone += 1
+		self.chunkCache[fileID] = cf
+	}
+}
+
+func (self *Chunker) isFileDone(fileID uuid.UUID) bool {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	cf := self.chunkCache[fileID]
+
+	return cf.ChunksDone == len(cf.Chunks)
 }
 
 func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
@@ -196,7 +234,7 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 	buf := make([]byte, 1024)
 	for i := 0; i < chunks; i++ {
 		fchunk := cd[i]
-		if !fchunk.Done {
+		if fchunk.Status != CHUNK_DONE {
 			return errors.New(fmt.Sprintf("Chunk %v is not done", i))
 		}
 		f, err := os.Open(fchunk.FileName)
