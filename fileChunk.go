@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/google/uuid"
+	"crypto/sha256"
 );
 
 const CHUNK_SIZE int64 = 1024;
@@ -16,21 +17,15 @@ const (
 	CHUNK_DONE
 )
 
-const (
-	CHUNKEDFILE_EMPTY = iota
-	CHUNKEDFILE_BUSY
-	CHUNKEDFILE_DONE
-)
-
 type ChunkedFile struct {
 	Chunks []Chunk;
 	ChunksDone int;
-	//Status int;
 };
 
 type Chunk struct {
 	FileName string;
 	Status int;
+	Hash string;
 };
 
 type Chunker struct {
@@ -89,6 +84,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 	cf := make([]Chunk, chunks)
 	fmt.Println("Created", chunks, "chunks.")
 	f, err := os.Open(fname)
+	defer f.Close()
 	if err != nil {
 		return fileID, err
 	}
@@ -106,6 +102,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 			return fileID, errors.New("Unexpected read size drop")
 		}
 
+
 		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, chunk)
 		fwrite, err := os.Create(cfname)
 		defer fwrite.Close()
@@ -116,7 +113,15 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		if err != nil {
 			return fileID, err
 		}
-		cf[chunk] = Chunk{FileName: cfname, };
+
+		h := sha256.New()
+		h.Write(buf[:n])
+
+		cf[chunk] = Chunk{
+			FileName: cfname, 
+			Status: CHUNK_DONE, 
+			Hash: fmt.Sprintf("%x", h.Sum(nil)) ,
+		};
 	}
 	self.chunkCache[fileID] = ChunkedFile{Chunks: cf, ChunksDone: len(cf)}
 	return fileID, nil
@@ -134,7 +139,7 @@ func (self *Chunker) addEmptyFile(n_chunks int) uuid.UUID {
 	hash := fileID.String()
 	for i:= 0; i < n_chunks; i+=1 {
 		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, i)
-		arr[i] = Chunk{FileName: cfname, Status: CHUNK_EMPTY};
+		arr[i] = Chunk{FileName: cfname, Status: CHUNK_EMPTY, Hash: ""};
 	}
 
 	return fileID
@@ -200,6 +205,44 @@ func (self *Chunker) markChunkDone(fileID uuid.UUID, chunk int) {
 	}
 }
 
+func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool, error) {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	cf := self.chunkCache[fileID]
+	chk := cf.Chunks[chunk]
+	if (chk.Hash == "") {
+		h := sha256.New()
+		f, err := os.Open(chk.FileName)
+		defer f.Close()
+		if err != nil {
+			fmt.Printf("Couldn't open chunk file %v %v %v\n", fileID, chunk, chk.FileName)
+			return false, errors.New("Couldn't open chunk file")
+		}
+		buf := make([]byte, 1024)
+		n, err := f.Read(buf)
+		if err != nil {
+			fmt.Printf("Couldn't read from chunk file?\n")
+			return false, errors.New("Couldn't read from chunk file")
+		}
+		h.Write(buf[:n])
+		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
+		cf.Chunks[chunk] = chk
+	}
+	fmt.Printf("Chunk %v: %v\n", chunk, chk.Hash)
+	return chk.Hash == hash, nil
+}
+
+func (self *Chunker) deleteChunk(fileID uuid.UUID, chunk int) {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	cf := self.chunkCache[fileID]
+	os.Remove(cf.Chunks[chunk].FileName)
+	cf.Chunks[chunk].Hash = ""
+	cf.Chunks[chunk].Status = CHUNK_EMPTY
+}
+
 func (self *Chunker) isFileDone(fileID uuid.UUID) bool {
 	self.chunkMutex.Lock()
 	defer self.chunkMutex.Unlock()
@@ -246,4 +289,31 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 		wf.Write(buf[:n])
 	}
 	return nil
+}
+
+func (self *Chunker) getDoneChunks(fileID uuid.UUID) []int {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+	cf := self.chunkCache[fileID]
+	res := make([]int, len(cf.Chunks))
+	ri := 0
+	for i := range(cf.Chunks) {
+		if cf.Chunks[i].Status == CHUNK_DONE {
+			res[ri] = i
+			ri += 1
+		}
+	}
+	return res[:ri]
+}
+
+func (self *Chunker) getCheckSums(fileID uuid.UUID) []string {
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	cf := self.chunkCache[fileID]
+	res := make([]string, len(cf.Chunks))
+	for i := range(cf.Chunks) {
+		res[i] = cf.Chunks[i].Hash
+	}
+	return res
 }

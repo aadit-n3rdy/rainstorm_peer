@@ -2,64 +2,12 @@ package main
 
 import (
 	"crypto/tls"
-	"encoding/json"
 	"fmt"
 	common "github.com/aadit-n3rdy/rainstorm_common"
 	"strings"
-	"net"
 
 	"github.com/quic-go/quic-go"
 )
-
-func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) {
-	dict := map[string]interface{} {
-		"class": "init",
-		"type": "download_start",
-		"file_id": fileID,
-	}
-	dictMsg, err := json.Marshal(dict)
-
-	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
-	defer conn.Close()
-
-	if err != nil {
-		return common.FileDownloadData{}, err
-	}
-
-	conn.Write(dictMsg)
-
-	buf := make([]byte, 1024)
-	fdd := common.FileDownloadData{}
-	n, err := conn.Read(buf)
-	err = json.Unmarshal(buf[:n], &fdd)
-	if err != nil {
-		return common.FileDownloadData{}, err
-	}
-	return fdd, nil
-}
-
-func pushFDD(fdd *common.FileDownloadData, trackerIP string) error {
-
-	dict := map[string]interface{} {
-		"class": "init",
-		"type": "file_register",
-		"file_download_data": 	fdd,
-	}
-
-	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
-	defer conn.Close()
-
-	if err != nil {
-		return err
-	}
-
-	fdd_msg, err := json.Marshal(dict)
-	_, err = conn.Write(fdd_msg)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func main() {
 	done := false

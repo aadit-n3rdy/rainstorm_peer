@@ -36,8 +36,12 @@ func TestSender(t *testing.T) {
 
 	var fdd common.FileDownloadData
 
+	PeerIPBlackList = make(map[string]interface{})
+
 	FileManagerFillFDD("somefileid", chunker, &fdd)
 	pushFDD(&fdd, "127.0.0.1")
+
+	fmt.Printf("Checksum: %v\n", chunker.getCheckSums(chunkerID))
 
 	go aliveHandler()
 

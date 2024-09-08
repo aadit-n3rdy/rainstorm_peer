@@ -17,6 +17,8 @@ func TestReceiver(t *testing.T) {
 	fmt.Print("Enter tracker IP address: ")
 	fmt.Scanf("%s", &trackerIP)
 
+	PeerIPBlackList = make(map[string]interface{})
+
 	//trackerIP := "127.0.0.1"
 	fdd, err := fetchFDD("somefileid", trackerIP)
 	if err != nil {

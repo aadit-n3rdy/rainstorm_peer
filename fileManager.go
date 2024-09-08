@@ -44,9 +44,12 @@ func FileManagerFillFDD(fileID string, chunker *Chunker, fdd *common.FileDownloa
 		return
 	}
 	sf := raw.(StoredFile)
+	if !chunker.isFileDone(sf.ChunkerID) {
+		return
+	}
 	fdd.FileID = fileID
 	fdd.FileName = sf.FileName
-	cl, _ := chunker.getChunks(sf.ChunkerID)
-	fdd.ChunkCount = len(cl)
 	fdd.Peers = make([]common.Peer, 0)
+	fdd.Checksums = chunker.getCheckSums(sf.ChunkerID)
+	fdd.ChunkCount = len(fdd.Checksums)
 }

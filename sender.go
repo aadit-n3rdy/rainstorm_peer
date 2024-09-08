@@ -8,11 +8,52 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/quic-go/quic-go"
+	"github.com/aadit-n3rdy/rainstorm_common"
+	"net"
 );
 
 var testFileID uuid.UUID;
 
 const SUBCHUNK_SIZE int64 = 100;
+
+func pushFDD(fdd *common.FileDownloadData, trackerIP string) error {
+
+	smallfdd := common.FileDownloadData{
+		FileID: fdd.FileID,
+		FileName: fdd.FileName,
+		Peers: fdd.Peers,
+		Checksums: []string{},
+		ChunkCount: fdd.ChunkCount,
+	}
+
+	dict := map[string]interface{} {
+		"class": "init",
+		"type": "file_register",
+		"file_download_data": 	smallfdd,
+	}
+
+	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
+	defer conn.Close()
+
+	if err != nil {
+		return err
+	}
+
+	fdd_msg, err := json.Marshal(dict)
+	_, err = conn.Write(fdd_msg)
+	if err != nil {
+		return err
+	}
+
+	buf := []byte("ABCD")
+
+	conn.Read(buf)
+	for i := 0; i < fdd.ChunkCount; i += 1 {
+		conn.Write([]byte(fmt.Sprintf("%v\n", fdd.Checksums[i])))
+	}
+
+	return nil
+}
 
 func sendHandler(listener *quic.Listener, chunker *Chunker) {
 	for {
@@ -63,8 +104,6 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 		fmt.Println(frm)
 		
 		// 2. check file cache
-		// NEED A MAPPING FROM FILEID to CHUNKFILEID
-		// FN JUST SENDING THE SAME FILE
 		sf, ok := FileManagerGetFile(frm.FileID)
 		if !ok {
 			stream.Write([]byte(fmt.Sprintf("{\"status\": %v}", STATUS_MISSING)))
@@ -93,6 +132,9 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 
 		for true {
 			n, err = stream.Read(recvBuf)
+			if n == 0 {
+				break
+			}
 			crm := ChunkReqMsg{}
 			err = json.Unmarshal(recvBuf[:n], &crm)
 			fmt.Println(crm.Chunk)
