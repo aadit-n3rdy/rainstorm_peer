@@ -1,13 +1,25 @@
 package main
 
 import (
-	"os"
-	"sync"
+	"strconv"
+	"crypto/sha256"
+	"encoding/csv"
 	"errors"
 	"fmt"
+	"io/fs"
+	"os"
+	"sync"
+
 	"github.com/google/uuid"
-	"crypto/sha256"
 );
+
+func must(a any, err error) any {
+	if err == nil {
+		return a
+	}
+	fmt.Println("Error: ", err.Error())
+	panic(err)
+}
 
 const CHUNK_SIZE int64 = 1024;
 
@@ -229,7 +241,6 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
 		cf.Chunks[chunk] = chk
 	}
-	fmt.Printf("Chunk %v: %v\n", chunk, chk.Hash)
 	return chk.Hash == hash, nil
 }
 
@@ -254,7 +265,6 @@ func (self *Chunker) isFileDone(fileID uuid.UUID) bool {
 
 func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 	self.chunkMutex.Lock()
-	fmt.Println("got lock")
 	defer self.chunkMutex.Unlock()
 
 	wf, err := os.Create(dest)
@@ -316,4 +326,119 @@ func (self *Chunker) getCheckSums(fileID uuid.UUID) []string {
 		res[i] = cf.Chunks[i].Hash
 	}
 	return res
+}
+
+func writeChunks(fname string, chunks []Chunk) error {
+	f, err := os.Create(fname)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	for i := range(chunks) {
+		st := chunks[i].Status
+		if st == CHUNK_BUSY {
+			st = CHUNK_EMPTY
+		}
+		w.Write([]string{
+			chunks[i].FileName,
+			chunks[i].Hash,
+			strconv.Itoa(st),
+		})
+	}
+
+	return nil
+}
+
+func readChunks(fname string, chunks []Chunk) error {
+	f, err := os.Open(fname)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+
+	for i := range(chunks) {
+		rec, err := r.Read()
+		if err != nil {
+			return err
+		}
+		chunks[i] = Chunk{
+			FileName: rec[0],
+			Hash: rec[1],
+			Status: must(strconv.Atoi(rec[2])).(int),
+		}
+	}
+
+	return nil
+}
+
+func (self *Chunker) saveChunker() error {
+	err := os.Mkdir(self.chunkPath + "/savefiles", 0777)
+	if !errors.Is(err, fs.ErrExist) && err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+	err = os.Mkdir(self.chunkPath + "/savefiles/chunked", 0777)
+	if !errors.Is(err, fs.ErrExist) && err != nil {
+		fmt.Println(err.Error())
+		return err
+	}
+
+	self.chunkMutex.Lock()
+	defer self.chunkMutex.Unlock()
+
+	fmt.Println("locked")
+
+	f, err := os.Create(self.chunkPath + "/savefiles/chunkersave.csv")
+	defer f.Close()
+	if err != nil {
+		return err
+	}
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	for k, v := range(self.chunkCache) {
+		w.Write([]string{
+			k.String(),
+			strconv.Itoa(v.ChunksDone),
+			strconv.Itoa(len(v.Chunks)),
+		})
+		writeChunks(self.chunkPath + "/savefiles/chunked/" + k.String(), v.Chunks)
+	}
+	return nil
+}
+
+func (self *Chunker) loadChunker() error {
+	save, err := os.Open(self.chunkPath + "/savefiles/chunkersave.csv")
+	if err != nil {
+		return err
+	}
+	r := csv.NewReader(save)
+
+	for {
+		sl, err := r.Read()
+		if sl == nil {
+			break
+		} else if err != nil {
+			return err
+		}
+		fileID, err := uuid.Parse(sl[0])
+		if err != nil {
+			return err
+		}
+		cf := ChunkedFile{
+			ChunksDone: must(strconv.Atoi(sl[1])).(int),
+			Chunks: make([]Chunk, must(strconv.Atoi(sl[2])).(int)),
+		}
+		readChunks(self.chunkPath + "/savefiles/chunked/" + fileID.String(), cf.Chunks)
+		self.chunkCache[fileID] = cf
+	}
+
+	return nil
 }

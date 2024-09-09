@@ -8,40 +8,42 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
-func TestSender(t *testing.T) {
+func TestSenderPersist(t *testing.T) {
 	fmt.Println("Sender test")
 	chunker := &Chunker{}
 	chunker.init("./sender_chunk_path")
 	fmt.Println("Chunker inited")
 	var err error
-	chunkerID, err := chunker.addDiskFile("./testfiles/file_100K.jpg")
-	fmt.Printf("Chunked to: %v\n", chunkerID)
-	if err != nil {
-		fmt.Println("Err: ", err)
-		return
-	}
+	//chunkerID, err := chunker.addDiskFile("./testfiles/file_100K.jpg")
+	//fmt.Printf("Chunked to: %v\n", chunkerID)
+	//if err != nil {
+	//	fmt.Println("Err: ", err)
+	//	return
+	//}
 
 	TrackerManagerInit()
 
-	trackerIP := "127.0.0.1"
+	//trackerIP := "127.0.0.1"
 
-	FileManagerAddFile(
-		StoredFile{
-			FileID: "somefileid", 
-			FileName: "somefilename", 
-			ChunkerID: chunkerID,
-			TrackerIP: trackerIP,
-		},
-	)
+	//FileManagerAddFile(
+	//	StoredFile{
+	//		FileID: "somefileid", 
+	//		FileName: "somefilename", 
+	//		ChunkerID: chunkerID,
+	//		TrackerIP: trackerIP,
+	//	},
+	//)
 
-	var fdd common.FileDownloadData
+	//var fdd common.FileDownloadData
 
 	PeerIPBlackList = make(map[string]interface{})
 
-	FileManagerFillFDD("somefileid", chunker, &fdd)
-	pushFDD(&fdd, "127.0.0.1")
-
-	fmt.Printf("Checksum: %v\n", chunker.getCheckSums(chunkerID))
+	//FileManagerFillFDD("somefileid", chunker, &fdd)
+	//pushFDD(&fdd, "127.0.0.1")
+	
+	//SaveAll("sender_save/", chunker)
+	LoadAll("sender_save/", chunker)
+	fmt.Println("LOaded")
 
 	go aliveHandler()
 
