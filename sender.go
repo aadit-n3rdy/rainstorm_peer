@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"encoding/binary"
 	"fmt"
 	"os"
 	"github.com/google/uuid"
@@ -148,10 +149,30 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 				break
 			}
 
+			st, err := os.Stat(fname)
+			if err != nil {
+				fmt.Println(err)
+				break
+			}
+			size := st.Size()
+
+			var done int64 = 0
+
 			writeBuf := make([]byte, CHUNK_SIZE)
 			f, err := os.Open(fname)
-			n, err = f.Read(writeBuf)
-			stream.Write(writeBuf[:n])
+
+			size_bytes := make([]byte, 8)
+			binary.LittleEndian.PutUint64(size_bytes, uint64(size))
+
+			stream.Write(size_bytes)
+			for done < size {
+				n, err = f.Read(writeBuf)
+				if n == 0 || err != nil {
+					break
+				}
+				done += int64(n)
+				stream.Write(writeBuf[:n])
+			}
 		}
 		conn.CloseWithError(quic.ApplicationErrorCode(0), "bye!")
 		fmt.Println("DONE")

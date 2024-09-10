@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/csv"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -316,15 +317,39 @@ func fileReceiveStream(
 					trig <- RECV_FAIL
 					return errors.New(fmt.Sprintf("Error getting chunk %v fname, %v", cam.Chunks[i], err))
 				}
-				chunker.markChunkDone(chunkerID, cam.Chunks[i])
 				f, err := os.Create(fname)
 				if err != nil {
 					trig <- RECV_FAIL
 					return errors.New("Could not open file: " + fname + " " + err.Error())
 				}
-				n, err = stream.Read(buf)
-				f.Write(buf[:n])
+
+				size_buf := make([]byte, 8)
+				n, err := stream.Read(size_buf)
+				if err != nil {
+					trig <- RECV_FAIL
+					return err
+				}
+
+				size := binary.LittleEndian.Uint64(size_buf)
+				done := uint64(0)
+
+				for done < size {
+					n, err = stream.Read(buf)
+					if err != nil {
+						break
+					}
+					f.Write(buf[:n])
+					done += uint64(n)
+				}
+
 				f.Close()
+
+				if done < size {
+					trig <- RECV_FAIL
+					return errors.New(fmt.Sprintf("Chunk %v did not reach expected size", cam.Chunks[i]))
+				}
+
+				chunker.markChunkDone(chunkerID, cam.Chunks[i])
 
 				verified, _ :=  chunker.verifyChunk(chunkerID, cam.Chunks[i], fdd.Checksums[cam.Chunks[i]])
 				if !verified {
