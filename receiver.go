@@ -1,19 +1,23 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
-	"bufio"
-	common "github.com/aadit-n3rdy/rainstorm_common"
 	"time"
+
+	common "github.com/aadit-n3rdy/rainstorm_common"
 	"github.com/google/uuid"
 
-	"github.com/quic-go/quic-go"
 	"net"
 	"sync"
+
+	"github.com/quic-go/quic-go"
 );
 
 const (
@@ -23,6 +27,14 @@ const (
 
 var PeerIPBlackList map[string]interface{}
 var PeerBlackListMut sync.Mutex
+
+var RecvFiles map[string]string
+var RecvFilesMut sync.Mutex
+
+func ReceiverInit() {
+	PeerIPBlackList = make(map[string]interface{})
+	RecvFiles = make(map[string]string)
+}
 
 func IsPeerBlackListed(peerIP string) bool {
 	PeerBlackListMut.Lock()
@@ -35,6 +47,78 @@ func AddPeerToBlackList(peerIP string) {
 	PeerBlackListMut.Lock()
 	defer PeerBlackListMut.Unlock()
 	PeerIPBlackList[peerIP] = struct{}{}
+}
+
+func addToRecvFiles(fileID string, trackerIP string) {
+	RecvFilesMut.Lock()
+	RecvFiles[fileID] = trackerIP;
+	RecvFilesMut.Unlock()
+}
+
+func SaveReceivers(path string) error {
+	RecvFilesMut.Lock()
+	defer RecvFilesMut.Unlock()
+
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	w := csv.NewWriter(f)
+	defer w.Flush()
+
+	for k, v := range(RecvFiles) {
+		err = w.Write([]string{k, v})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func LoadReceivers(path string, chunker *Chunker) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	r := csv.NewReader(f)
+
+	for {
+		sl, err := r.Read()
+		if err == io.EOF || sl == nil || len(sl) == 0 {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		AddFileReceiver(sl[0], sl[1], chunker)
+	}
+}
+
+func AddFileReceiver(fileID string, trackerIP string, chunker *Chunker) {
+	addToRecvFiles(fileID, trackerIP)
+
+	fdd, err := fetchFDD("somefileid", trackerIP)
+	if err != nil {
+		fmt.Printf("Error fetching FDD: %v\n", err)
+		return
+	}
+
+	fmt.Println(fdd)
+
+	go fileReceiver(
+		fdd,
+		"testfile.jpeg",
+		chunker,
+	)
+}
+
+func RemoveFileReceiver(fileID string) {
+	RecvFilesMut.Lock()
+	delete(RecvFiles, fileID)
+	RecvFilesMut.Unlock()
 }
 
 const MAX_RECV_THREADS = 10
@@ -79,12 +163,15 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 }
 
 func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) error {
+	defer RemoveFileReceiver(fdd.FileID)
+
 	if len(fdd.Peers) == 0 {
 		return errors.New("No peers for given file")
 	}
 	trigChan := make(chan int)
 
 	chunkerID := chunker.addEmptyFile(fdd.ChunkCount)
+
 
 	next_peer := 0
 	n_fail := 0
@@ -95,6 +182,7 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 		n_peers += 1
 		next_peer += 1
 	}
+
 
 	for {
 		code := <- trigChan
@@ -232,7 +320,6 @@ func fileReceiveStream(
 					trig <- RECV_FAIL
 					return errors.New("Could not open file: " + fname + " " + err.Error())
 				}
-
 				n, err = stream.Read(buf)
 				f.Write(buf[:n])
 				f.Close()

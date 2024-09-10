@@ -17,25 +17,29 @@ func TestReceiver(t *testing.T) {
 	fmt.Print("Enter tracker IP address: ")
 	fmt.Scanf("%s", &trackerIP)
 
-	PeerIPBlackList = make(map[string]interface{})
+	ReceiverInit()
 
 	//trackerIP := "127.0.0.1"
-	fdd, err := fetchFDD("somefileid", trackerIP)
-	if err != nil {
-		fmt.Printf("Error fetching FDD: %v\n", err)
-		return
-	}
+	//fdd, err := fetchFDD("somefileid", trackerIP)
+	//if err != nil {
+	//	fmt.Printf("Error fetching FDD: %v\n", err)
+	//	return
+	//}
 
-	fmt.Println(fdd)
+	//fmt.Println(fdd)
 
-	err = fileReceiver(
-		fdd,
-		"testfile.jpeg",
-		chunker,
-	)
+	//err = fileReceiver(
+	//	fdd,
+	//	"testfile.jpeg",
+	//	chunker,
+	//)
 
-	if err != nil {
-		fmt.Println(err.Error())
-	}
-	fmt.Println("Test done!")
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//}
+	//fmt.Println("Test done!")
+
+	AddFileReceiver("somefileid", "127.0.0.1", chunker)
+
+	for {}
 }

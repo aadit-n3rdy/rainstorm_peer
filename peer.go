@@ -5,6 +5,7 @@ import (
 	"fmt"
 	common "github.com/aadit-n3rdy/rainstorm_common"
 	"strings"
+	"os"
 
 	"github.com/quic-go/quic-go"
 )
@@ -14,7 +15,12 @@ func main() {
 	var s string;
 
 	chunker := &Chunker{}
-	chunker.init("./chunkdata")
+	CHUNK_PATH := os.Getenv("RSTM_CHUNK_PATH")
+	if CHUNK_PATH == "" {
+		CHUNK_PATH, _ = os.Getwd()
+		CHUNK_PATH = CHUNK_PATH + "/chunk_path"
+	}
+	chunker.init(CHUNK_PATH)
 
 	listener, err := quic.ListenAddr(fmt.Sprintf(
 		":%v", common.PEER_QUIC_PORT),
