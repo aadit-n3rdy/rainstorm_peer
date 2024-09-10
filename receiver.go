@@ -100,7 +100,7 @@ func LoadReceivers(path string, chunker *Chunker) error {
 func AddFileReceiver(fileID string, local_fname string, trackerIP string, chunker *Chunker) {
 	addToRecvFiles(fileID, local_fname, trackerIP)
 
-	fdd, err := fetchFDD("somefileid", trackerIP)
+	fdd, err := fetchFDD(fileID, trackerIP)
 	if err != nil {
 		fmt.Printf("Error fetching FDD: %v\n", err)
 		return
@@ -132,11 +132,11 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 	dictMsg, err := json.Marshal(dict)
 
 	conn, err := net.Dial("tcp", trackerIP+":"+fmt.Sprint(common.TRACKER_TCP_PORT))
-	defer conn.Close()
 
 	if err != nil {
 		return common.FileDownloadData{}, err
 	}
+	defer conn.Close()
 
 	conn.Write(dictMsg)
 
@@ -146,6 +146,9 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 	err = json.Unmarshal(buf[:n], &fdd)
 	if err != nil {
 		return common.FileDownloadData{}, err
+	}
+	if fdd.ChunkCount == 0 {
+		return common.FileDownloadData{}, errors.New("Empty FDD returned")
 	}
 
 	conn.Write([]byte("OK"))

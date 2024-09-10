@@ -12,10 +12,8 @@ func TestReceiver(t *testing.T) {
 
 	fmt.Println("Chunker ready");
 
-	var trackerIP string
-
-	fmt.Print("Enter tracker IP address: ")
-	fmt.Scanf("%s", &trackerIP)
+	//fmt.Print("Enter tracker IP address: ")
+	//fmt.Scanf("%s", &trackerIP)
 
 	ReceiverInit()
 
@@ -39,7 +37,7 @@ func TestReceiver(t *testing.T) {
 	//}
 	//fmt.Println("Test done!")
 
-	AddFileReceiver("somefileid", "127.0.0.1", chunker)
+	AddFileReceiver("somefileid", "testfile.jpg", "127.0.0.1", chunker)
 
 	for {}
 }
