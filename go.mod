@@ -1,4 +1,4 @@
-module github.com/aadit-n3rdy/rainstorm/peer
+module github.com/aadit-n3rdy/rainstorm_peer
 
 go 1.22.5
 
