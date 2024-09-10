@@ -2,10 +2,14 @@ package main
 
 import (
 	"fmt"
+	"os"
 )
 
 
 func SaveAll(savepath string, chunker *Chunker) {
+
+	os.MkdirAll(savepath, 0777)
+
 	err := FileManagerSave(savepath + "/filemanager.csv")
 	if err != nil {
 		fmt.Printf("Error saving FM: %v\n", err)
