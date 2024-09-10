@@ -10,17 +10,54 @@ import (
 	"github.com/quic-go/quic-go"
 )
 
+func pushHandler(local_fname string , fid string, fname string, trackerIP string, chunker *Chunker) {
+	chunkerID, err := chunker.addDiskFile(local_fname)
+	if err != nil {
+		fmt.Printf("Chunker error: %s\n", err.Error())
+		return
+	}
+	FileManagerAddFile(
+		StoredFile{
+			FileID: fid,
+			FileName: fname,
+			ChunkerID: chunkerID,
+			TrackerIP: trackerIP,
+		},
+	)
+	var fdd common.FileDownloadData
+	FileManagerFillFDD(
+		fid,
+		chunker,
+		&fdd,
+	)
+	err = pushFDD(&fdd, trackerIP)
+	if err != nil {
+		fmt.Printf("Error pushing FDD: %s\n", err.Error())
+		return
+	}
+}
+
+func pullHandler(local_fname string, fid string, trackerIP string, chunker *Chunker) {
+	AddFileReceiver(fid, local_fname, trackerIP, chunker)
+}
+
 func main() {
 	done := false
 	var s string;
 
 	chunker := &Chunker{}
-	CHUNK_PATH := os.Getenv("RSTM_CHUNK_PATH")
-	if CHUNK_PATH == "" {
-		CHUNK_PATH, _ = os.Getwd()
-		CHUNK_PATH = CHUNK_PATH + "/chunk_path"
+	SAVE_PATH := os.Getenv("RSTM_SAVE_PATH")
+	if SAVE_PATH == "" {
+		SAVE_PATH, _ = os.Getwd()
+		SAVE_PATH = SAVE_PATH + "/rstm_save"
 	}
-	chunker.init(CHUNK_PATH)
+	chunker.init(SAVE_PATH + "/chunk_path")
+
+	TrackerManagerInit()
+
+	ReceiverInit()
+
+	go aliveHandler()
 
 	listener, err := quic.ListenAddr(fmt.Sprintf(
 		":%v", common.PEER_QUIC_PORT),
@@ -39,6 +76,36 @@ func main() {
 		tokens := strings.Fields(s)
 		if len(tokens) == 0 {
 			continue;
+		}
+		switch tokens[0] {
+			case "push" :
+				fmt.Print("Enter local file name: ")
+				var local_fname, fid, fname, trackerIP string
+				fmt.Scanf("%s", &local_fname)
+				fmt.Print("Enter file ID: ")
+				fmt.Scanf("%s", &fid)
+				fmt.Print("Enter file name: ")
+				fmt.Scanf("%s", &fname)
+				fmt.Print("Enter tracker IP")
+				fmt.Scanf("%s", &trackerIP)
+				pushHandler(local_fname, fid, fname, trackerIP, chunker)
+			case "pull":
+				fmt.Print("Enter local file name: ")
+				var local_fname, fid, trackerIP string
+				fmt.Scanf("%s", &local_fname)
+				fmt.Print("Enter file ID: ")
+				fmt.Scanf("%s", &fid)
+				fmt.Print("Enter tracker IP: ")
+				fmt.Scanf("%s", &trackerIP)
+				pullHandler(local_fname, fid, trackerIP, chunker)
+			case "load":
+				LoadAll(SAVE_PATH, chunker)
+			case "save":
+				SaveAll(SAVE_PATH, chunker)
+			case "exit":
+				fmt.Print("Saving and exiting...\n")
+				SaveAll(SAVE_PATH, chunker)
+				done = true
 		}
 	}
 	return;

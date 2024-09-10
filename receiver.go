@@ -28,12 +28,12 @@ const (
 var PeerIPBlackList map[string]interface{}
 var PeerBlackListMut sync.Mutex
 
-var RecvFiles map[string]string
+var RecvFiles map[string][]string
 var RecvFilesMut sync.Mutex
 
 func ReceiverInit() {
 	PeerIPBlackList = make(map[string]interface{})
-	RecvFiles = make(map[string]string)
+	RecvFiles = make(map[string][]string)
 }
 
 func IsPeerBlackListed(peerIP string) bool {
@@ -49,9 +49,9 @@ func AddPeerToBlackList(peerIP string) {
 	PeerIPBlackList[peerIP] = struct{}{}
 }
 
-func addToRecvFiles(fileID string, trackerIP string) {
+func addToRecvFiles(fileID string, local_fname string, trackerIP string) {
 	RecvFilesMut.Lock()
-	RecvFiles[fileID] = trackerIP;
+	RecvFiles[fileID] = []string{fileID, local_fname, trackerIP}
 	RecvFilesMut.Unlock()
 }
 
@@ -68,8 +68,8 @@ func SaveReceivers(path string) error {
 	w := csv.NewWriter(f)
 	defer w.Flush()
 
-	for k, v := range(RecvFiles) {
-		err = w.Write([]string{k, v})
+	for _, v := range(RecvFiles) {
+		err = w.Write(v)
 		if err != nil {
 			return err
 		}
@@ -93,12 +93,12 @@ func LoadReceivers(path string, chunker *Chunker) error {
 		} else if err != nil {
 			return err
 		}
-		AddFileReceiver(sl[0], sl[1], chunker)
+		AddFileReceiver(sl[0], sl[1], sl[2], chunker)
 	}
 }
 
-func AddFileReceiver(fileID string, trackerIP string, chunker *Chunker) {
-	addToRecvFiles(fileID, trackerIP)
+func AddFileReceiver(fileID string, local_fname string, trackerIP string, chunker *Chunker) {
+	addToRecvFiles(fileID, local_fname, trackerIP)
 
 	fdd, err := fetchFDD("somefileid", trackerIP)
 	if err != nil {
@@ -110,7 +110,7 @@ func AddFileReceiver(fileID string, trackerIP string, chunker *Chunker) {
 
 	go fileReceiver(
 		fdd,
-		"testfile.jpeg",
+		local_fname, 
 		chunker,
 	)
 }
