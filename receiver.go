@@ -175,7 +175,6 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 
 	chunkerID := chunker.addEmptyFile(fdd.ChunkCount)
 
-
 	next_peer := 0
 	n_fail := 0
 	n_peers := 0

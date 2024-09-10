@@ -90,7 +90,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 	}
 	size := fstat.Size()
 	chunks := int(size / CHUNK_SIZE)
-	if CHUNK_SIZE%1024 > 0 {
+	if size%1024 > 0 {
 		chunks += 1
 	}
 	cf := make([]Chunk, chunks)
@@ -110,10 +110,11 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		if err != nil {
 			return fileID, err
 		}
-		if n < int(CHUNK_SIZE) && chunk != chunks-1 {
-			return fileID, errors.New("Unexpected read size drop")
-		}
+		//if n < int(CHUNK_SIZE) && chunk != chunks-1 {
+		//	return fileID, errors.New("Unexpected read size drop")
+		//}
 
+		fmt.Printf("Chunk %v: %v bytes\n", chunk, n)
 
 		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, chunk)
 		fwrite, err := os.Create(cfname)
@@ -121,7 +122,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		if err != nil {
 			return fileID, err
 		}
-		_, err = fwrite.Write(buf)
+		_, err = fwrite.Write(buf[:n])
 		if err != nil {
 			return fileID, err
 		}
@@ -241,6 +242,9 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
 		cf.Chunks[chunk] = chk
 	}
+	if chk.Hash != hash {
+		fmt.Println(chk.Hash)
+	}
 	return chk.Hash == hash, nil
 }
 
@@ -249,7 +253,7 @@ func (self *Chunker) deleteChunk(fileID uuid.UUID, chunk int) {
 	defer self.chunkMutex.Unlock()
 
 	cf := self.chunkCache[fileID]
-	os.Remove(cf.Chunks[chunk].FileName)
+	//os.Remove(cf.Chunks[chunk].FileName)
 	cf.Chunks[chunk].Hash = ""
 	cf.Chunks[chunk].Status = CHUNK_EMPTY
 }
