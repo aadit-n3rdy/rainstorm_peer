@@ -333,9 +333,13 @@ func fileReceiveStream(
 				size := binary.LittleEndian.Uint64(size_buf)
 				done := uint64(0)
 
+				fmt.Println("Chunk ", cam.Chunks[i], " size ", size)
+
 				for done < size {
 					n, err = stream.Read(buf)
-					if err != nil {
+					if err != nil || n == 0{
+						fmt.Println(err)
+						fmt.Println("n is ", n, " done is ", done, " size is ", size)
 						break
 					}
 					f.Write(buf[:n])

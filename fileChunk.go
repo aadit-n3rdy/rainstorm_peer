@@ -50,7 +50,7 @@ func (self *Chunker) init(chunkPath string) error {
 	self.chunkPath = chunkPath;
 	_, err := os.Stat(chunkPath)
 	if os.IsNotExist(err) {
-		err = os.Mkdir(chunkPath, 0777);
+		err = os.MkdirAll(chunkPath, 0777);
 	} else if err != nil {
 		return err
 	}
