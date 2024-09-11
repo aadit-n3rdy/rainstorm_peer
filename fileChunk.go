@@ -1,13 +1,14 @@
 package main
 
 import (
-	"strconv"
 	"crypto/sha256"
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
+	"strconv"
 	"sync"
 
 	"github.com/google/uuid"
@@ -228,11 +229,14 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 		}
 		buf := make([]byte, 1024)
 		n, err := f.Read(buf)
-		if err != nil {
+		for n != 0 && err == nil {
+			h.Write(buf[:n])
+			n, err = f.Read(buf)
+		}
+		if err != nil && err != io.EOF {
 			fmt.Printf("Couldn't read from chunk file?\n")
 			return false, errors.New("Couldn't read from chunk file")
 		}
-		h.Write(buf[:n])
 		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
 		cf.Chunks[chunk] = chk
 	}
