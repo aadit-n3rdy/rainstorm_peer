@@ -344,7 +344,7 @@ func fileReceiveStream(
 
 				for done < size {
 					n, err = stream.Read(buf)
-					if err != nil || n == 0{
+					if err != nil || n == 0 {
 						fmt.Println(err)
 						fmt.Println("n is ", n, " done is ", done, " size is ", size)
 						break
@@ -360,7 +360,6 @@ func fileReceiveStream(
 					return errors.New(fmt.Sprintf("Chunk %v did not reach expected size", cam.Chunks[i]))
 				}
 
-				chunker.markChunkDone(chunkerID, cam.Chunks[i])
 
 				verified, _ :=  chunker.verifyChunk(chunkerID, cam.Chunks[i], fdd.Checksums[cam.Chunks[i]])
 				if !verified {
@@ -370,6 +369,8 @@ func fileReceiveStream(
 					trig <- RECV_FAIL
 					return errors.New(fmt.Sprintf("Checksum fail on chunk %v", cam.Chunks[i]))
 				}
+
+				chunker.markChunkDone(chunkerID, cam.Chunks[i])
 
 			}
 			iters += 1

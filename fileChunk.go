@@ -118,7 +118,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 			h.Write(buf[:n])
 			n, err = f.Read(buf)
 		}
-		if err != nil {
+		if err != nil && err != io.EOF {
 			return fileID, err
 		}
 		//if n < int(CHUNK_SIZE) && chunk != chunks-1 {
@@ -267,10 +267,10 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 	defer self.chunkMutex.Unlock()
 
 	wf, err := os.Create(dest)
-	defer wf.Close()
 	if err != nil {
 		return err
 	}
+	defer wf.Close()
 
 	cd, err := self.getChunksUnsafe(fileID)
 	if err != nil {
@@ -286,12 +286,19 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 			return errors.New(fmt.Sprintf("Chunk %v is not done", i))
 		}
 		f, err := os.Open(fchunk.FileName)
-		defer f.Close()
 		if err != nil {
 			return err
 		}
+		defer f.Close()
+
 		n, err := f.Read(buf)
-		wf.Write(buf[:n])
+		for n != 0 && err != nil {
+			wf.Write(buf[:n])
+			n, err = f.Read(buf)
+		}
+		if err != io.EOF && err != nil {
+			return err
+		}
 	}
 	return nil
 }
