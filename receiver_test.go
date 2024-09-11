@@ -16,6 +16,7 @@ func TestReceiver(t *testing.T) {
 	//fmt.Scanf("%s", &trackerIP)
 
 	ReceiverInit()
+	TrackerManagerInit()
 
 	//trackerIP := "127.0.0.1"
 	//fdd, err := fetchFDD("somefileid", trackerIP)

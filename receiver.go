@@ -134,6 +134,9 @@ func RemoveFileReceiver(fileID string) {
 const MAX_RECV_THREADS = 10
 
 func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) {
+
+	tstart := time.Now()
+
 	dict := map[string]interface{} {
 		"class": "init",
 		"type": "download_start",
@@ -172,10 +175,15 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 		fdd.Checksums[i] = fdd.Checksums[i][:len(fdd.Checksums[i])-1]
 	}
 
+	tend := time.Now()
+
+	fmt.Printf("Fetching FDD took %v\n", tend.Sub(tstart)/time.Microsecond)
+
 	return fdd, nil
 }
 
 func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker, chunkerID uuid.UUID) error {
+	tstart := time.Now()
 	defer RemoveFileReceiver(fdd.FileID)
 
 	if len(fdd.Peers) == 0 {
@@ -223,6 +231,7 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker, ch
 		return err
 	}
 	fmt.Println("Done unchunking file ", dest)
+	fmt.Printf("File transfer took %v\n", time.Now().Sub(tstart)/time.Microsecond)
 	return nil
 }
 
