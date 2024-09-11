@@ -86,7 +86,7 @@ func main() {
 				fmt.Scanf("%s", &fid)
 				fmt.Print("Enter file name: ")
 				fmt.Scanf("%s", &fname)
-				fmt.Print("Enter tracker IP")
+				fmt.Print("Enter tracker IP: ")
 				fmt.Scanf("%s", &trackerIP)
 				pushHandler(local_fname, fid, fname, trackerIP, chunker)
 			case "pull":

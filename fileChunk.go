@@ -21,7 +21,7 @@ func must(a any, err error) any {
 	panic(err)
 }
 
-const CHUNK_SIZE int64 = 1024;
+const CHUNK_SIZE int64 = 10240;
 
 const (
 	CHUNK_EMPTY = iota
@@ -86,7 +86,7 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 	}
 	size := fstat.Size()
 	chunks := int(size / CHUNK_SIZE)
-	if size%1024 > 0 {
+	if size % CHUNK_SIZE > 0 {
 		chunks += 1
 	}
 	cf := make([]Chunk, chunks)
@@ -95,33 +95,34 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 	if err != nil {
 		return fileID, err
 	}
-	buf := make([]byte, CHUNK_SIZE)
+	buf := make([]byte, 1024)
 	//hasher := fnv.New32()
 	//hasher.Write([]byte(fileID.String()))
 	//hash := hasher.Sum32()
 	hash := fileID.String()
 	for chunk := 0; chunk < chunks; chunk++ {
+		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, chunk)
+		fwrite, err := os.Create(cfname)
+		if err != nil {
+			return fileID, err
+		}
+		defer fwrite.Close()
+
 		n, err := f.Read(buf)
+
+		h := sha256.New()
+
+		for n != 0 && err == nil {
+			fwrite.Write(buf[:n])
+			h.Write(buf[:n])
+			n, err = f.Read(buf)
+		}
 		if err != nil {
 			return fileID, err
 		}
 		//if n < int(CHUNK_SIZE) && chunk != chunks-1 {
 		//	return fileID, errors.New("Unexpected read size drop")
 		//}
-
-		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, chunk)
-		fwrite, err := os.Create(cfname)
-		defer fwrite.Close()
-		if err != nil {
-			return fileID, err
-		}
-		_, err = fwrite.Write(buf[:n])
-		if err != nil {
-			return fileID, err
-		}
-
-		h := sha256.New()
-		h.Write(buf[:n])
 
 		cf[chunk] = Chunk{
 			FileName: cfname, 

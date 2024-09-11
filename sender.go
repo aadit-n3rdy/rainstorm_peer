@@ -15,8 +15,6 @@ import (
 
 var testFileID uuid.UUID;
 
-const SUBCHUNK_SIZE int64 = 100;
-
 func pushFDD(fdd *common.FileDownloadData, trackerIP string) error {
 
 	smallfdd := common.FileDownloadData{
@@ -156,7 +154,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 
 			var done int64 = 0
 
-			writeBuf := make([]byte, CHUNK_SIZE)
+			writeBuf := make([]byte, 1024)
 			f, err := os.Open(fname)
 
 			size_bytes := make([]byte, 8)
@@ -173,7 +171,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			}
 		}
 		conn.CloseWithError(quic.ApplicationErrorCode(0), "bye!")
-		fmt.Println("Sent file to ", listener.Addr().String())
+		fmt.Println("Sent file")
 	}
 }
 
