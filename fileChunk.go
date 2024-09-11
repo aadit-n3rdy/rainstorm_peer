@@ -292,7 +292,7 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 		defer f.Close()
 
 		n, err := f.Read(buf)
-		for n != 0 && err != nil {
+		for n != 0 && err == nil {
 			wf.Write(buf[:n])
 			n, err = f.Read(buf)
 		}
