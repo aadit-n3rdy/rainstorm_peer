@@ -30,7 +30,7 @@ func aliveHandler() {
 				fmt.Printf("Couldn't send UDP alive to %v: %v\n", destAddr, err)
 				continue
 			}
-			fmt.Printf("Sent alive %v to %v\n", string(buf), destAddr)
+			//fmt.Printf("Sent alive %v to %v\n", string(buf), destAddr)
 		}
 	}
 }

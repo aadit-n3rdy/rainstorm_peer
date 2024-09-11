@@ -77,15 +77,11 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 	self.chunkMutex.Lock()
 	defer self.chunkMutex.Unlock()
 
-	fmt.Println("Got chunkmutex lock")
-
 	// Chunks the file with the given file name, and returns a UUID to refer to it
 	fileID := uuid.New()
-	fmt.Println("Created fileID", fileID.String())
 
 	fstat, err := os.Stat(fname)
 	if err != nil {
-		fmt.Println("huh, what file?")
 		return fileID, err
 	}
 	size := fstat.Size()
@@ -94,7 +90,6 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		chunks += 1
 	}
 	cf := make([]Chunk, chunks)
-	fmt.Println("Created", chunks, "chunks.")
 	f, err := os.Open(fname)
 	defer f.Close()
 	if err != nil {
@@ -113,8 +108,6 @@ func (self *Chunker) addDiskFile(fname string) (uuid.UUID, error) {
 		//if n < int(CHUNK_SIZE) && chunk != chunks-1 {
 		//	return fileID, errors.New("Unexpected read size drop")
 		//}
-
-		fmt.Printf("Chunk %v: %v bytes\n", chunk, n)
 
 		cfname := fmt.Sprintf("%v/%v_%v.chunk", self.chunkPath, hash, chunk)
 		fwrite, err := os.Create(cfname)
@@ -242,9 +235,6 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
 		cf.Chunks[chunk] = chk
 	}
-	if chk.Hash != hash {
-		fmt.Println(chk.Hash)
-	}
 	return chk.Hash == hash, nil
 }
 
@@ -277,16 +267,12 @@ func (self *Chunker) unchunk(fileID uuid.UUID, dest string) error {
 		return err
 	}
 
-	fmt.Println("Created dest", dest)
-
 	cd, err := self.getChunksUnsafe(fileID)
 	if err != nil {
 		return err
 	}
 	
 	chunks := len(cd)
-
-	fmt.Println("Total of", chunks, " chunks")
 
 	buf := make([]byte, 1024)
 	for i := 0; i < chunks; i++ {
@@ -395,8 +381,6 @@ func (self *Chunker) saveChunker() error {
 
 	self.chunkMutex.Lock()
 	defer self.chunkMutex.Unlock()
-
-	fmt.Println("locked")
 
 	f, err := os.Create(self.chunkPath + "/savefiles/chunkersave.csv")
 	defer f.Close()

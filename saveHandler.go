@@ -16,7 +16,6 @@ func SaveAll(savepath string, chunker *Chunker) {
 	}
 	err = chunker.saveChunker()
 	if err != nil {
-		fmt.Println(err.Error())
 		fmt.Printf("Error saving Chunker: %v\n", err)
 	}
 	err = SaveReceivers(savepath+"/receivers.csv")
@@ -32,7 +31,6 @@ func LoadAll(savepath string, chunker *Chunker) {
 	}
 	err = chunker.loadChunker()
 	if err != nil {
-		fmt.Println(err.Error())
 		fmt.Printf("Error loading chunker: %v\n", err)
 	}
 	err = LoadReceivers(savepath+"/receivers.csv", chunker)

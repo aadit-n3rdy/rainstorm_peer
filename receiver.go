@@ -50,10 +50,17 @@ func AddPeerToBlackList(peerIP string) {
 	PeerIPBlackList[peerIP] = struct{}{}
 }
 
-func addToRecvFiles(fileID string, local_fname string, trackerIP string) {
+func addToRecvFiles(fileID string, local_fname string, trackerIP string, chunkerID uuid.UUID) {
 	RecvFilesMut.Lock()
 	RecvFiles[fileID] = []string{fileID, local_fname, trackerIP}
 	RecvFilesMut.Unlock()
+	sf := StoredFile{
+		FileID: fileID,
+		FileName: local_fname,
+		ChunkerID: chunkerID,
+		TrackerIP: trackerIP,
+	}
+	FileManagerAddFile(sf)
 }
 
 func SaveReceivers(path string) error {
@@ -99,7 +106,6 @@ func LoadReceivers(path string, chunker *Chunker) error {
 }
 
 func AddFileReceiver(fileID string, local_fname string, trackerIP string, chunker *Chunker) {
-	addToRecvFiles(fileID, local_fname, trackerIP)
 
 	fdd, err := fetchFDD(fileID, trackerIP)
 	if err != nil {
@@ -107,12 +113,15 @@ func AddFileReceiver(fileID string, local_fname string, trackerIP string, chunke
 		return
 	}
 
-	fmt.Println(fdd)
+	chunkerID := chunker.addEmptyFile(fdd.ChunkCount)
+
+	addToRecvFiles(fileID, local_fname, trackerIP, chunkerID)
 
 	go fileReceiver(
 		fdd,
 		local_fname, 
 		chunker,
+		chunkerID,
 	)
 }
 
@@ -166,15 +175,13 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 	return fdd, nil
 }
 
-func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) error {
+func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker, chunkerID uuid.UUID) error {
 	defer RemoveFileReceiver(fdd.FileID)
 
 	if len(fdd.Peers) == 0 {
 		return errors.New("No peers for given file")
 	}
 	trigChan := make(chan int)
-
-	chunkerID := chunker.addEmptyFile(fdd.ChunkCount)
 
 	next_peer := 0
 	n_fail := 0
@@ -213,8 +220,9 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker) er
 	err := chunker.unchunk(chunkerID, dest)
 	if  err != nil {
 		fmt.Println("Failed while unchunking:", err)
+		return err
 	}
-	fmt.Println("DONE UNCHUNKING!")
+	fmt.Println("Done unchunking file ", dest)
 	return nil
 }
 
@@ -241,15 +249,11 @@ func fileReceiveStream(
 			return errors.New(fmt.Sprintf("Error dialing addr %v, %v", destStr, err))
 		}
 
-		fmt.Println("Dialed addr")
-
 		stream, err := conn.AcceptStream(conn.Context())
 		if err != nil {
 			trig <- RECV_FAIL
 			return errors.New(fmt.Sprintf("Error accepting stream from %v, %v", destStr, err))
 		}
-
-		fmt.Println("Accepted stream")
 
 		buf := make([]byte, 1024)
 
@@ -262,7 +266,6 @@ func fileReceiveStream(
 			trig <- RECV_FAIL
 			return errors.New(fmt.Sprintf("Error unmarshalling %v hello, %v", string(buf[:n]), err))
 		}
-		fmt.Println(dict)
 
 		frm := FileReqMsg{FileID: fdd.FileID, FileName: fdd.FileName}
 		frmBuf, err := json.Marshal(frm)
@@ -288,13 +291,10 @@ func fileReceiveStream(
 		for (!chunker.isFileDone(chunkerID) && iters < 5) {
 			cam := ChunkAvailMsg{}
 			err = json.Unmarshal(buf[:n], &cam)
-			fmt.Println(string(buf[:n]))
 			if err != nil {
 				trig <- RECV_FAIL
 				return errors.New(fmt.Sprintf("Error Unmarshaling CAM, %v", err))
 			}
-
-			fmt.Println("Chunks available: ", cam.Chunks)
 
 			for i:= 0; i < len(cam.Chunks); i++ {
 				if (!chunker.markChunkBusyIfFree(chunkerID, cam.Chunks[i])) {
@@ -332,8 +332,6 @@ func fileReceiveStream(
 
 				size := binary.LittleEndian.Uint64(size_buf)
 				done := uint64(0)
-
-				fmt.Println("Chunk ", cam.Chunks[i], " size ", size)
 
 				for done < size {
 					n, err = stream.Read(buf)

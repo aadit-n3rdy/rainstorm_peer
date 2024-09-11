@@ -67,7 +67,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 		}
 
 		// 1. get file ID and file Name
-		fmt.Println("New connection from ", conn.RemoteAddr().String())
+		//fmt.Println("New connection from ", conn.RemoteAddr().String())
 		stream, err := conn.OpenStream()
 		if err != nil {
 			fmt.Println("Could not open stream to ", conn.RemoteAddr().String(), err);
@@ -102,8 +102,6 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			return
 		}
 
-		fmt.Println(frm)
-		
 		// 2. check file cache
 		sf, ok := FileManagerGetFile(frm.FileID)
 		if !ok {
@@ -138,7 +136,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			}
 			crm := ChunkReqMsg{}
 			err = json.Unmarshal(recvBuf[:n], &crm)
-			fmt.Println(crm.Chunk)
+			//fmt.Println(crm.Chunk)
 			if crm.Status == STATUS_DONE {
 				break
 			}
@@ -175,7 +173,7 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 			}
 		}
 		conn.CloseWithError(quic.ApplicationErrorCode(0), "bye!")
-		fmt.Println("DONE")
+		fmt.Println("Sent file to ", listener.Addr().String())
 	}
 }
 
