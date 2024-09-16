@@ -177,7 +177,7 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 
 	tend := time.Now()
 
-	fmt.Printf("Fetching FDD took %v\n", tend.Sub(tstart)/time.Microsecond)
+	fmt.Printf("Fetching FDD took %v\n", tend.Sub(tstart))
 
 	return fdd, nil
 }
@@ -231,7 +231,7 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker, ch
 		return err
 	}
 	fmt.Println("Done unchunking file ", dest)
-	fmt.Printf("File transfer took %v\n", time.Now().Sub(tstart)/time.Microsecond)
+	fmt.Printf("File transfer took %v\n", time.Now().Sub(tstart))
 	return nil
 }
 
