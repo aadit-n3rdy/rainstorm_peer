@@ -116,8 +116,9 @@ func main() {
 			fmt.Printf("%s\n", fname)
 			pushHandler(fname, fid, fileLines[1], fileLines[0], chunker)
 		} else if choice == "pull" {
+			fmt.Println("Tracker IPS", GetTrackerIPs())
 			res := GetTrackerFiles(fileLines[0])
-			fmt.Print("res=", res)
+			fmt.Println("res=", res)
 			fmt.Println("Download to local file name", fileLines[1])
 			pullHandler(fileLines[1], fid, fileLines[0], chunker)
 		} else if choice == "load" {
