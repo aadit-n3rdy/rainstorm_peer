@@ -3,3 +3,4 @@ peer
 clean
 sender_save/**
 rainstorm_peer
+rstm_save/

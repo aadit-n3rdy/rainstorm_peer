@@ -104,15 +104,16 @@ func main() {
 
 		fmt.Println("Tracker IP:", fileLines[0])
 
-		fmt.Print("Enter file id: ", fid)
+		fmt.Print("Enter file id:", fid)
 		fmt.Scanf("%s", &fid)
 
-		fmt.Println("Enter\n\t`push` to upload file details\n\t`pull` to download data")
+		fmt.Println("Enter\n\t`push` to upload file details\n\t`pull` to download data\n\t`load` Load file\n\t`save` to save and exit the program\n\t`quit` to quit the program")
 		fmt.Scanf("%s", &choice)
 
 		if choice == "push" {
-			fmt.Print("Enter file name: ")
+			fmt.Print("Enter file name:")
 			fmt.Scanf("%s", &fname)
+			fmt.Printf("%s\n", fname)
 			pushHandler(fname, fid, fileLines[1], fileLines[0], chunker)
 		} else if choice == "pull" {
 			fmt.Println("Download to local file name", fileLines[1])
