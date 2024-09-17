@@ -1,16 +1,16 @@
 package main
 
 import (
+	"bufio"
 	"crypto/tls"
 	"fmt"
 	common "github.com/aadit-n3rdy/rainstorm_common"
-	"strings"
-	"os"
-
 	"github.com/quic-go/quic-go"
+	"os"
+	//"strings"
 )
 
-func pushHandler(local_fname string , fid string, fname string, trackerIP string, chunker *Chunker) {
+func pushHandler(local_fname string, fid string, fname string, trackerIP string, chunker *Chunker) {
 	chunkerID, err := chunker.addDiskFile(local_fname)
 	if err != nil {
 		fmt.Printf("Chunker error: %s\n", err.Error())
@@ -18,8 +18,8 @@ func pushHandler(local_fname string , fid string, fname string, trackerIP string
 	}
 	FileManagerAddFile(
 		StoredFile{
-			FileID: fid,
-			FileName: fname,
+			FileID:    fid,
+			FileName:  fname,
 			ChunkerID: chunkerID,
 			TrackerIP: trackerIP,
 		},
@@ -43,7 +43,7 @@ func pullHandler(local_fname string, fid string, trackerIP string, chunker *Chun
 
 func main() {
 	done := false
-	var s string;
+	//var s string
 
 	chunker := &Chunker{}
 	SAVE_PATH := os.Getenv("RSTM_SAVE_PATH")
@@ -65,20 +65,79 @@ func main() {
 		nil,
 	)
 	if err != nil {
-		fmt.Println("Could not lisen on port ", common.PEER_QUIC_PORT, err);
+		fmt.Println("Could not lisen on port ", common.PEER_QUIC_PORT, err)
 		return
 	}
 
 	go sendHandler(listener, chunker)
 
+	// NOTE: Code handling reading config file
+
+	// file name storing config
+	// Format of file is:
+	// 1. tracker IP
+	// 2. local file name
+	configFile := ".config"
+
+	// open the file
+	fileStream, err := os.Open(configFile)
+	if err != nil {
+		fmt.Println("Error opening file")
+		return
+	}
+
+	// open scanner to read file and split by lines
+	fileScanner := bufio.NewScanner(fileStream)
+	fileScanner.Split(bufio.ScanLines)
+	var fileLines []string
+
+	// store the data into the string array
+	for fileScanner.Scan() {
+		fileLines = append(fileLines, fileScanner.Text())
+	}
+
+	// close file stream
+	fileStream.Close()
+
 	for !done {
-		fmt.Scanln(&s);
-		tokens := strings.Fields(s)
-		if len(tokens) == 0 {
-			continue;
+		var choice, fname, fid string
+
+		fmt.Println("Tracker IP:", fileLines[0])
+
+		fmt.Print("Enter file id: ", fid)
+		fmt.Scanf("%s", &fid)
+
+		fmt.Println("Enter\n\t`push` to upload file details\n\t`pull` to download data")
+		fmt.Scanf("%s", &choice)
+
+		if choice == "push" {
+			fmt.Print("Enter file name: ")
+			fmt.Scanf("%s", &fname)
+			pushHandler(fname, fid, fileLines[1], fileLines[0], chunker)
+		} else if choice == "pull" {
+			fmt.Println("Download to local file name", fileLines[1])
+			pullHandler(fileLines[1], fid, fileLines[0], chunker)
+		} else if choice == "load" {
+			LoadAll(SAVE_PATH, chunker)
+		} else if choice == "save" {
+			SaveAll(SAVE_PATH, chunker)
+		} else if choice == "quit" {
+			fmt.Print("Saving and exiting...\n")
+			SaveAll(SAVE_PATH, chunker)
+			done = true
 		}
-		switch tokens[0] {
-			case "push" :
+	}
+
+	// push or pull data from peers
+	/*
+		for !done {
+			fmt.Scanln(&s)
+			tokens := strings.Fields(s)
+			if len(tokens) == 0 {
+				continue
+			}
+			switch tokens[0] {
+			case "push":
 				fmt.Print("Enter local file name: ")
 				var local_fname, fid, fname, trackerIP string
 				fmt.Scanf("%s", &local_fname)
@@ -106,9 +165,10 @@ func main() {
 				fmt.Print("Saving and exiting...\n")
 				SaveAll(SAVE_PATH, chunker)
 				done = true
+			}
 		}
-	}
-	return;
+	*/
+	return
 }
 
 func generateTLSConfig() *tls.Config {
@@ -118,7 +178,7 @@ func generateTLSConfig() *tls.Config {
 	}
 	return &tls.Config{
 		InsecureSkipVerify: true,
-		Certificates: []tls.Certificate{cert},
-		NextProtos:   []string{"quic-rainstorm-p2p"},
+		Certificates:       []tls.Certificate{cert},
+		NextProtos:         []string{"quic-rainstorm-p2p"},
 	}
 }
