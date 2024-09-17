@@ -1,18 +1,18 @@
 package main
 
 import (
-	"time"
 	"encoding/json"
-	"net"
 	"fmt"
 	common "github.com/aadit-n3rdy/rainstorm_common"
+	"net"
+	"time"
 )
 
 func aliveHandler() {
 	for true {
-		time.Sleep(10*time.Second)
+		time.Sleep(10 * time.Second)
 		trackerList := GetTrackerIPs()
-		for tr := range(trackerList) {
+		for tr := range trackerList {
 			destAddr := fmt.Sprintf("%v:%v", trackerList[tr], common.TRACKER_UDP_PORT)
 			conn, err := net.Dial("udp", destAddr)
 			if err != nil {
