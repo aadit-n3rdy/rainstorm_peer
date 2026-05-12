@@ -61,7 +61,11 @@ func sendHandler(listener *quic.Listener, chunker *Chunker) {
 		// 0. listen for connections
 		conn, err := listener.Accept(context.Background())
 		if err != nil {
-			fmt.Println("Could not accept conn from ", conn.RemoteAddr().String(), err)
+			remoteAddr := ""
+			if conn != nil {
+				remoteAddr = conn.RemoteAddr().String()
+			}
+			appLogger.Error().Err(err).Str("remote_addr", remoteAddr).Msg("could not accept connection")
 			return
 		}
 		go sendHandlerStream(conn, chunker)
@@ -72,10 +76,9 @@ func sendHandlerStream(conn quic.Connection, chunker *Chunker) {
 	defer conn.CloseWithError(quic.ApplicationErrorCode(0), "bye!")
 
 	// 1. get file ID and file Name
-	//fmt.Println("New connection from ", conn.RemoteAddr().String())
 	stream, err := conn.OpenStream()
 	if err != nil {
-		fmt.Println("Could not open stream to ", conn.RemoteAddr().String(), err)
+		appLogger.Error().Err(err).Str("remote_addr", conn.RemoteAddr().String()).Msg("could not open stream")
 		return
 	}
 	defer stream.Close()
@@ -84,26 +87,25 @@ func sendHandlerStream(conn quic.Connection, chunker *Chunker) {
 	}
 	helloMsg, err := json.Marshal(helloDict)
 	if err != nil {
-		fmt.Println("Could not marshal hello msg ", conn.RemoteAddr().String(), err)
+		appLogger.Error().Err(err).Str("remote_addr", conn.RemoteAddr().String()).Msg("could not marshal hello message")
 		return
 	}
 	n, err := stream.Write(helloMsg)
 	if err != nil {
-		fmt.Printf("Could not send hello\n%v bytes sent\nError: %v\n", n, err)
+		appLogger.Error().Err(err).Int("bytes_sent", n).Str("remote_addr", conn.RemoteAddr().String()).Msg("could not send hello")
 		return
 	}
 
 	recvBuf := make([]byte, 1024)
 	n, err = stream.Read(recvBuf)
 	if err != nil {
-		fmt.Printf("Could not read frm from %v\nError: %v\n", conn.RemoteAddr().String(), err)
+		appLogger.Error().Err(err).Str("remote_addr", conn.RemoteAddr().String()).Msg("could not read file request message")
 		return
 	}
-	//fmt.Println("File request msg: ", string(recvBuf[:n]))
 	frm := FileReqMsg{}
 	err = json.Unmarshal(recvBuf[:n], &frm)
 	if err != nil {
-		fmt.Printf("Couldn't unmarshall frm, %v\n", err)
+		appLogger.Error().Err(err).Msg("could not unmarshal file request message")
 		return
 	}
 
@@ -111,12 +113,12 @@ func sendHandlerStream(conn quic.Connection, chunker *Chunker) {
 	sf, ok := FileManagerGetFile(frm.FileID)
 	if !ok {
 		stream.Write([]byte(fmt.Sprintf("{\"status\": %v}", STATUS_MISSING)))
-		fmt.Printf("Unkown file ID %v\n", frm.FileID)
+		appLogger.Warn().Str("file_id", frm.FileID).Msg("unknown requested file ID")
 		return
 	}
 	cd, err := chunker.getChunks(sf.ChunkerID)
 	if err != nil {
-		fmt.Printf("Unknown chunker id %v %v\n", sf.ChunkerID.String(), err)
+		appLogger.Error().Err(err).Str("chunker_id", sf.ChunkerID.String()).Msg("unknown chunker ID")
 		return
 	}
 
@@ -129,7 +131,7 @@ func sendHandlerStream(conn quic.Connection, chunker *Chunker) {
 	}
 	camBuf, err := json.Marshal(cam)
 	if err != nil {
-		fmt.Println("Couldnt marshal cam: ", err)
+		appLogger.Error().Err(err).Msg("could not marshal chunk availability message")
 		return
 	}
 	n, err = stream.Write(camBuf)
@@ -141,20 +143,19 @@ func sendHandlerStream(conn quic.Connection, chunker *Chunker) {
 		}
 		crm := ChunkReqMsg{}
 		err = json.Unmarshal(recvBuf[:n], &crm)
-		//fmt.Println(crm.Chunk)
 		if crm.Status == STATUS_DONE {
 			break
 		}
 
 		fname, err := chunker.getChunkFname(sf.ChunkerID, crm.Chunk)
 		if err != nil {
-			fmt.Println(err)
+			appLogger.Error().Err(err).Int("chunk", crm.Chunk).Msg("could not get chunk filename")
 			break
 		}
 
 		st, err := os.Stat(fname)
 		if err != nil {
-			fmt.Println(err)
+			appLogger.Error().Err(err).Str("chunk_file", fname).Msg("could not stat chunk file")
 			break
 		}
 		size := st.Size()

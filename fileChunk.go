@@ -18,7 +18,7 @@ func must(a any, err error) any {
 	if err == nil {
 		return a
 	}
-	fmt.Println("Error: ", err.Error())
+	appLogger.Error().Err(err).Msg("required conversion failed")
 	panic(err)
 }
 
@@ -223,7 +223,11 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 		f, err := os.Open(chk.FileName)
 		defer f.Close()
 		if err != nil {
-			fmt.Printf("Couldn't open chunk file %v %v %v\n", fileID, chunk, chk.FileName)
+			appLogger.Error().Err(err).
+				Str("file_id", fileID.String()).
+				Int("chunk", chunk).
+				Str("chunk_file", chk.FileName).
+				Msg("could not open chunk file")
 			return false, errors.New("Couldn't open chunk file")
 		}
 		buf := make([]byte, 1024)
@@ -233,7 +237,11 @@ func (self *Chunker) verifyChunk(fileID uuid.UUID, chunk int, hash string) (bool
 			n, err = f.Read(buf)
 		}
 		if err != nil && err != io.EOF {
-			fmt.Printf("Couldn't read from chunk file?\n")
+			appLogger.Error().Err(err).
+				Str("file_id", fileID.String()).
+				Int("chunk", chunk).
+				Str("chunk_file", chk.FileName).
+				Msg("could not read chunk file")
 			return false, errors.New("Couldn't read from chunk file")
 		}
 		chk.Hash = fmt.Sprintf("%x", h.Sum(nil))
@@ -381,12 +389,12 @@ func readChunks(fname string, chunks []Chunk) error {
 func (self *Chunker) saveChunker() error {
 	err := os.Mkdir(self.chunkPath+"/savefiles", 0777)
 	if !errors.Is(err, fs.ErrExist) && err != nil {
-		fmt.Println(err.Error())
+		appLogger.Error().Err(err).Str("chunk_path", self.chunkPath).Msg("could not create chunk save directory")
 		return err
 	}
 	err = os.Mkdir(self.chunkPath+"/savefiles/chunked", 0777)
 	if !errors.Is(err, fs.ErrExist) && err != nil {
-		fmt.Println(err.Error())
+		appLogger.Error().Err(err).Str("chunk_path", self.chunkPath).Msg("could not create chunked save directory")
 		return err
 	}
 

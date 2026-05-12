@@ -30,10 +30,16 @@ Rainstorm Peer is the client-side application for the Rainstorm file sharing sys
 
 ## Usage
 
-Run the peer application:
+Run the peer application in GUI mode:
 
 ```bash
 ./peer
+```
+
+Run the peer application in CLI mode:
+
+```bash
+./peer -cli
 ```
 
 The application provides an interactive command-line interface. The following commands are available:
@@ -71,6 +77,27 @@ You can configure the storage location for application data using the `RSTM_SAVE
 export RSTM_SAVE_PATH=/path/to/my/storage
 ./peer
 ```
+
+You can also pass a YAML configuration file to either GUI or CLI mode:
+
+```bash
+./peer -config peer.yaml
+./peer -cli -config peer.yaml
+```
+
+Supported YAML fields:
+
+```yaml
+save_path: /path/to/my/storage
+chunk_path: /path/to/my/storage/chunks
+log_level: info
+log_format: console
+```
+
+-   **`save_path`**: Directory where state files are stored. Defaults to `./rstm_save` or `RSTM_SAVE_PATH`.
+-   **`chunk_path`**: Directory where chunks are stored. Defaults to `<save_path>/chunk_path`.
+-   **`log_level`**: `trace`, `debug`, `info`, `warn`, `error`, or `disabled`. Defaults to `info`.
+-   **`log_format`**: `console` or `json`. Defaults to `console`.
 
 ## Certificates
 

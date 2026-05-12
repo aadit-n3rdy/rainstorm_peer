@@ -14,7 +14,7 @@ import (
 func PushHandler(local_fname string, fid string, fname string, trackerIP string, chunker *Chunker) error {
 	chunkerID, err := chunker.addDiskFile(local_fname)
 	if err != nil {
-		fmt.Printf("Chunker error: %s\n", err.Error())
+		appLogger.Error().Err(err).Str("local_file", local_fname).Msg("chunker failed to add disk file")
 		return err
 	}
 	FileManagerAddFile(
@@ -33,10 +33,10 @@ func PushHandler(local_fname string, fid string, fname string, trackerIP string,
 	)
 	err = pushFDD(&fdd, trackerIP)
 	if err != nil {
-		fmt.Printf("Error pushing FDD: %s\n", err.Error())
+		appLogger.Error().Err(err).Str("file_id", fid).Str("tracker_ip", trackerIP).Msg("failed to push file download data")
 		return err
 	}
-	fmt.Printf("Successfully pushed file %s\n", fname)
+	appLogger.Info().Str("file_id", fid).Str("file_name", fname).Msg("successfully pushed file")
 	return nil
 }
 
@@ -45,13 +45,38 @@ func PullHandler(local_fname string, fid string, trackerIP string, chunker *Chun
 }
 
 func main() {
-	chunker := &Chunker{}
-	SAVE_PATH := os.Getenv("RSTM_SAVE_PATH")
-	if SAVE_PATH == "" {
-		SAVE_PATH, _ = os.Getwd()
-		SAVE_PATH = SAVE_PATH + "/rstm_save"
+	options, err := ParseRuntimeOptions(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "invalid options: %v\n", err)
+		os.Exit(2)
 	}
-	chunker.init(SAVE_PATH + "/chunk_path")
+
+	wd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not get working directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	cfg, err := LoadAppConfig(options.ConfigPath, wd)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not load config: %v\n", err)
+		os.Exit(1)
+	}
+
+	logger, err := NewAppLogger(cfg, os.Stderr)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "could not initialize logger: %v\n", err)
+		os.Exit(1)
+	}
+	SetAppLogger(logger)
+	appLogger.Info().
+		Bool("cli", options.CLI).
+		Str("save_path", cfg.SavePath).
+		Str("chunk_path", cfg.ChunkPath).
+		Msg("starting Rainstorm peer")
+
+	chunker := &Chunker{}
+	chunker.init(cfg.ChunkPath)
 
 	TrackerManagerInit()
 
@@ -65,17 +90,16 @@ func main() {
 		nil,
 	)
 	if err != nil {
-		fmt.Println("Could not lisen on port ", common.PEER_QUIC_PORT, err)
+		appLogger.Error().Err(err).Int("port", common.PEER_QUIC_PORT).Msg("could not listen on peer QUIC port")
 		return
 	}
 
 	go sendHandler(listener, chunker)
 
-	// Check for GUI flag or default to GUI if implemented
-	if len(os.Args) > 1 && os.Args[1] == "-cli" {
-		runCLI(chunker, SAVE_PATH)
+	if options.CLI {
+		runCLI(chunker, cfg.SavePath)
 	} else {
-		StartGUI(chunker, SAVE_PATH) // This will be defined in gui.go
+		StartGUI(chunker, cfg)
 	}
 }
 
@@ -124,7 +148,7 @@ func runCLI(chunker *Chunker, SAVE_PATH string) {
 func generateTLSConfig() *tls.Config {
 	cert, err := tls.LoadX509KeyPair("cert.pem", "key.pem")
 	if err != nil {
-		fmt.Printf("Failed to load TLS certificates: %v\n", err)
+		appLogger.Error().Err(err).Msg("failed to load TLS certificates")
 	}
 	return &tls.Config{
 		InsecureSkipVerify: true,

@@ -13,11 +13,12 @@ import (
 
 var logArea *widget.Entry
 
-func StartGUI(chunker *Chunker, savePath string) {
+func StartGUI(chunker *Chunker, cfg AppConfig) {
 	InitTransferManager()
 	a := app.New()
 	w := a.NewWindow("Rainstorm Peer")
 	w.Resize(fyne.NewSize(600, 400))
+	appLogger.Info().Str("save_path", cfg.SavePath).Msg("starting GUI")
 
 	// Defines tabs
 	pushTab := createPushTab(w, chunker)
@@ -42,7 +43,7 @@ func logMessage(msg string) {
 		// Auto scroll could be simulated by cursor position but Entry widget handles it reasonably
 		logArea.Refresh()
 	}
-	fmt.Println(msg)
+	appLogger.Info().Str("source", "gui").Msg(msg)
 }
 
 func createPushTab(w fyne.Window, chunker *Chunker) fyne.CanvasObject {
