@@ -36,6 +36,12 @@ Run the peer application:
 ./peer
 ```
 
+Run the interactive CLI instead of the GUI:
+
+```bash
+./peer -cli
+```
+
 The application provides an interactive command-line interface. The following commands are available:
 
 ### Commands
@@ -71,6 +77,23 @@ You can configure the storage location for application data using the `RSTM_SAVE
 export RSTM_SAVE_PATH=/path/to/my/storage
 ./peer
 ```
+
+Both GUI and CLI modes also accept a YAML configuration file:
+
+```bash
+./peer -config rainstorm.yml
+./peer -cli -config rainstorm.yml
+```
+
+```yaml
+save_path: /path/to/rainstorm/state
+chunk_path: /path/to/rainstorm/chunks
+log_level: info
+log_format: console
+```
+
+Supported `log_level` values follow zerolog levels such as `debug`, `info`, `warn`, and `error`.
+Supported `log_format` values are `console` and `json`.
 
 ## Certificates
 
