@@ -42,7 +42,7 @@ func logMessage(msg string) {
 		// Auto scroll could be simulated by cursor position but Entry widget handles it reasonably
 		logArea.Refresh()
 	}
-	fmt.Println(msg)
+	appLogger.Info().Str("source", "gui").Msg(msg)
 }
 
 func createPushTab(w fyne.Window, chunker *Chunker) fyne.CanvasObject {

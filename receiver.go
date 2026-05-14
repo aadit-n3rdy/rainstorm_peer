@@ -109,7 +109,7 @@ func AddFileReceiver(fileID string, local_fname string, trackerIP string, chunke
 
 	fdd, err := fetchFDD(fileID, trackerIP)
 	if err != nil {
-		fmt.Printf("Error fetching FDD: %v\n", err)
+		appLogger.Error().Err(err).Str("file_id", fileID).Str("tracker_ip", trackerIP).Msg("failed to fetch file download data")
 		if onComplete != nil {
 			onComplete(0, 0, err)
 		}
@@ -181,7 +181,7 @@ func fetchFDD(fileID string, trackerIP string) (common.FileDownloadData, error) 
 
 	tend := time.Now()
 
-	fmt.Printf("Fetching FDD took %v\n", tend.Sub(tstart))
+	appLogger.Debug().Dur("duration", tend.Sub(tstart)).Str("file_id", fileID).Str("tracker_ip", trackerIP).Msg("fetched file download data")
 
 	return fdd, nil
 }
@@ -232,20 +232,19 @@ func fileReceiver(fdd common.FileDownloadData, dest string, chunker *Chunker, ch
 				return err
 			}
 		} else {
-			fmt.Println("Unknown code ", code)
+			appLogger.Warn().Int("code", code).Msg("unknown receiver trigger code")
 		}
 	}
 
 	err := chunker.unchunk(chunkerID, dest)
 	if err != nil {
-		fmt.Println("Failed while unchunking:", err)
+		appLogger.Error().Err(err).Str("dest", dest).Msg("failed while unchunking file")
 		if onComplete != nil {
 			onComplete(0, 0, err)
 		}
 		return err
 	}
-	fmt.Println("Done unchunking file ", dest)
-	fmt.Printf("File transfer took %v\n", time.Now().Sub(tstart))
+	appLogger.Info().Str("dest", dest).Dur("duration", time.Now().Sub(tstart)).Msg("file transfer completed")
 	if onComplete != nil {
 		onComplete(fdd.ChunkCount, fdd.ChunkCount, nil)
 	}
@@ -363,8 +362,7 @@ func fileReceiveStream(
 			for done < size {
 				n, err = stream.Read(buf)
 				if err != nil || n == 0 {
-					fmt.Println(err)
-					fmt.Println("n is ", n, " done is ", done, " size is ", size)
+					appLogger.Warn().Err(err).Int("bytes_read", n).Uint64("done", done).Uint64("size", size).Msg("chunk read failed")
 					break
 				}
 				f.Write(buf[:n])
@@ -380,7 +378,7 @@ func fileReceiveStream(
 
 			verified, _ := chunker.verifyChunk(chunkerID, cam.Chunks[i], fdd.Checksums[cam.Chunks[i]])
 			if !verified {
-				fmt.Printf("Chunk %d had hash %v failed\n", cam.Chunks[i], fdd.Checksums[cam.Chunks[i]])
+				appLogger.Warn().Int("chunk", cam.Chunks[i]).Str("expected_hash", fdd.Checksums[cam.Chunks[i]]).Msg("chunk hash verification failed")
 				chunker.deleteChunk(chunkerID, cam.Chunks[i])
 				AddPeerToBlackList(peer.IP)
 				trig <- RECV_FAIL
